@@ -558,6 +558,13 @@ fieldset { border: 0; padding: 0; margin: 0; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.pdf-result-snippet mark {
+  background: rgba(251, 191, 36, 0.55);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 700;
+}
 
 .pdf-search-bar {
   display: flex; gap: 6px; align-items: center;

@@ -394,15 +394,18 @@ function setSearchStatus(msg, isError) {
   pdfSearchStatus.classList.toggle('is-error', !!isError);
 }
 
-/* Render the top-K matches as a vertical list in the right-side panel. */
+/* Render literal or AI matches as a vertical list in the right-side panel. */
 function renderResultsPanel(matches) {
   const panel = document.getElementById('pdfResultsPanel');
   const list = document.getElementById('pdfResultsList');
+  const title = document.querySelector('.pdf-results-title');
   if (!matches || !matches.length) {
     panel.hidden = true;
     list.innerHTML = '';
     return;
   }
+  const isLiteral = matches[0] && matches[0].kind === 'literal';
+  if (title) title.textContent = isLiteral ? 'Matches' : 'AI matches';
   list.innerHTML = '';
   matches.forEach((m, i) => {
     const item = document.createElement('button');
@@ -410,23 +413,47 @@ function renderResultsPanel(matches) {
     item.className = 'pdf-result-item';
     item.dataset.rank = String(i + 1);
     if (i === 0) item.classList.add('is-active');
-    const color = AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
-    const snippet = m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text;
+    const color = isLiteral
+      ? 'var(--teal)'
+      : AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
+    const meta = isLiteral
+      ? `PAGE ${m.page}`
+      : `PAGE ${m.page} · ${(m.sim * 100).toFixed(0)}%`;
+    const snippetHtml = renderSnippetHtml(m);
     item.innerHTML = `
       <div class="pdf-result-item-head">
         <span class="pdf-result-rank" style="background:${escapeHtml(color)}">${i + 1}</span>
-        <span class="pdf-result-meta">PAGE ${m.page} · ${(m.sim * 100).toFixed(0)}%</span>
+        <span class="pdf-result-meta">${escapeHtml(meta)}</span>
       </div>
-      <div class="pdf-result-snippet">${escapeHtml(snippet)}</div>
+      <div class="pdf-result-snippet">${snippetHtml}</div>
     `;
     item.addEventListener('click', () => {
-      jumpToMatch(m);
       list.querySelectorAll('.is-active').forEach(el => el.classList.remove('is-active'));
       item.classList.add('is-active');
+      if (isLiteral) jumpToLiteralMatch(m);
+      else jumpToMatch(m);
     });
     list.appendChild(item);
   });
   panel.hidden = false;
+}
+
+/* Build snippet HTML — bolds the literal hit when offsets are present. */
+function renderSnippetHtml(m) {
+  if (m.kind === 'literal' && typeof m.hitOffset === 'number' && m.hitLen > 0) {
+    const before = m.text.slice(0, m.hitOffset);
+    const hit    = m.text.slice(m.hitOffset, m.hitOffset + m.hitLen);
+    const after  = m.text.slice(m.hitOffset + m.hitLen);
+    return escapeHtml(before) + '<mark>' + escapeHtml(hit) + '</mark>' + escapeHtml(after);
+  }
+  const snippet = m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text;
+  return escapeHtml(snippet);
+}
+
+function jumpToLiteralMatch(m) {
+  const app = getPdfApp();
+  if (!app) return;
+  app.pdfViewer.scrollPageIntoView({ pageNumber: m.page });
 }
 
 function hideResultsPanel() {
@@ -442,17 +469,67 @@ document.getElementById('pdfResultsClose').addEventListener('click', () => {
 
 async function literalSearch(query) {
   try {
-    hideResultsPanel();
     const app = await waitForPdfReady();
+    setSearchStatus('Searching…');
+    // 1. Inline highlight via PDF.js's own find.
     app.eventBus.dispatch('find', {
       source: window, type: '', query,
       phraseSearch: true, caseSensitive: false, entireWord: false,
       highlightAll: true, findPrevious: false,
     });
-    setSearchStatus('');
+    // 2. Populate the side panel with our own text-extracted snippets.
+    await collectAndShowLiteralMatches(app, query);
   } catch (e) {
     setSearchStatus('PDF not ready — try again in a moment.', true);
   }
+}
+
+async function collectAndShowLiteralMatches(app, query) {
+  // Extract text ourselves (don't rely on PDF.js's internal normalized offsets,
+  // which are skewed by its diff/normalization table). PDF.js still handles the
+  // in-PDF highlighting; we only need our own offsets to draw the side panel.
+  const doc = app.pdfDocument;
+  const matches = [];
+  const MAX = 80;
+  const q = query.toLowerCase();
+  if (!q) { hideResultsPanel(); setSearchStatus(''); return; }
+
+  for (let pageNum = 1; pageNum <= doc.numPages && matches.length < MAX; pageNum++) {
+    const page = await doc.getPage(pageNum);
+    const tc = await page.getTextContent();
+    const fullText = tc.items.map(i => i.str).join(' ');
+    const lower = fullText.toLowerCase();
+    let from = 0;
+    while (matches.length < MAX) {
+      const pos = lower.indexOf(q, from);
+      if (pos < 0) break;
+      const ctxStart = Math.max(0, pos - 60);
+      const ctxEnd   = Math.min(fullText.length, pos + q.length + 80);
+      const before = fullText.slice(ctxStart, pos);
+      const hit    = fullText.slice(pos, pos + q.length);
+      const after  = fullText.slice(pos + q.length, ctxEnd);
+      const prefix = ctxStart > 0 ? '…' : '';
+      const suffix = ctxEnd < fullText.length ? '…' : '';
+      matches.push({
+        kind: 'literal',
+        page: pageNum,
+        text: prefix + before + hit + after + suffix,
+        hitOffset: prefix.length + before.length,
+        hitLen: hit.length,
+      });
+      from = pos + q.length;
+    }
+  }
+
+  if (!matches.length) {
+    hideResultsPanel();
+    setSearchStatus(`No matches for "${query}".`, true);
+    return;
+  }
+  const pageCount = new Set(matches.map(m => m.page)).size;
+  const more = matches.length >= MAX ? '+ (showing first ' + MAX + ')' : '';
+  setSearchStatus(`${matches.length}${more} match${matches.length === 1 ? '' : 'es'} across ${pageCount} page${pageCount === 1 ? '' : 's'}`);
+  renderResultsPanel(matches);
 }
 function literalSearchClear() {
   const app = getPdfApp();
