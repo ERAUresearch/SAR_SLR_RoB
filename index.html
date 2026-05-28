@@ -155,23 +155,23 @@
     <section class="screen" id="screen-study" hidden>
       <div class="container study-container">
 
-        <button class="back-link" id="backToDash">← All studies</button>
-
-        <div class="study-head">
-          <div class="study-meta">
-            <span class="track-badge" id="studyTrack"></span>
-            <span class="study-id" id="studyId"></span>
-            <span class="study-year" id="studyYear"></span>
-          </div>
-          <h1 class="study-citation" id="studyCitation"></h1>
-          <div class="study-actions">
-            <a class="ghost-btn" id="studyPdf" target="_blank" rel="noopener">Open PDF in new tab ↗</a>
-            <span class="save-indicator" id="saveIndicator" aria-live="polite"></span>
-          </div>
-        </div>
-
         <div class="study-split">
           <div class="study-form-col">
+            <button class="back-link" id="backToDash">← All studies</button>
+
+            <div class="study-head">
+              <div class="study-meta">
+                <span class="track-badge" id="studyTrack"></span>
+                <span class="study-id" id="studyId"></span>
+                <span class="study-year" id="studyYear"></span>
+              </div>
+              <h1 class="study-citation" id="studyCitation"></h1>
+              <div class="study-actions">
+                <a class="ghost-btn" id="studyPdf" target="_blank" rel="noopener">Open PDF in new tab ↗</a>
+                <span class="save-indicator" id="saveIndicator" aria-live="polite"></span>
+              </div>
+            </div>
+
             <div class="score-card sticky-score">
               <div>
                 <div class="score-label">Live score</div>
@@ -224,7 +224,16 @@
               </label>
             </form>
             <div class="pdf-search-status" id="pdfSearchStatus" hidden></div>
-            <iframe class="study-pdf-frame" id="studyPdfFrame" title="Study PDF"></iframe>
+            <div class="study-pdf-body">
+              <iframe class="study-pdf-frame" id="studyPdfFrame" title="Study PDF"></iframe>
+              <aside class="pdf-results-panel" id="pdfResultsPanel" hidden aria-label="Search matches">
+                <header class="pdf-results-head">
+                  <span class="pdf-results-title">Matches</span>
+                  <button type="button" class="pdf-results-close" id="pdfResultsClose" title="Hide panel" aria-label="Hide panel">×</button>
+                </header>
+                <div class="pdf-results-list" id="pdfResultsList"></div>
+              </aside>
+            </div>
           </aside>
         </div>
 

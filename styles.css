@@ -42,8 +42,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .container.narrow { max-width: 720px; }
 .container.study-container {
   max-width: none;
-  padding-left: max(16px, 1in);
-  padding-right: max(16px, 1in);
+  padding-left: max(12px, 0.5in);
+  padding-right: max(12px, 0.5in);
 }
 
 /* ===== App bar ===== */
@@ -415,31 +415,31 @@ fieldset { border: 0; padding: 0; margin: 0; }
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding-top: 16px;
-    padding-bottom: 16px;
-    gap: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     overflow: hidden;
   }
-  .study-head, .back-link { flex-shrink: 0; }
-  .back-link { margin-bottom: 0; }
-  .study-head { margin-bottom: 0; }
   .study-split {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: clamp(460px, 36%, 620px) minmax(0, 1fr);
-    gap: 24px;
+    grid-template-columns: clamp(460px, 34%, 620px) minmax(0, 1fr);
+    gap: 16px;
     align-items: stretch;
     overflow: hidden;
   }
+  /* The form column holds the back-link, study head, score card, and form — and scrolls. */
   .study-form-col {
     min-width: 0;
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    overscroll-behavior: contain;  /* don't scroll the page when reaching ends */
+    overscroll-behavior: contain;
     padding-right: 8px;
   }
+  .study-form-col .back-link { margin-bottom: 8px; align-self: flex-start; }
+  .study-form-col .study-head { margin-bottom: 12px; }
+  /* The PDF column starts right under the appbar — no header above. */
   .study-pdf-col {
     display: flex;
     flex-direction: column;
@@ -447,15 +447,116 @@ fieldset { border: 0; padding: 0; margin: 0; }
     height: 100%;
     min-height: 0;
   }
-  .study-pdf-frame {
+  .study-pdf-body {
     flex: 1;
     min-height: 0;
+    display: flex;
+    gap: 8px;
+  }
+  .study-pdf-frame {
+    flex: 1;
+    min-width: 0;
     width: 100%;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: white;
     box-shadow: var(--shadow);
   }
+}
+
+/* ===== Results panel (right of PDF, shown after a search returns matches) ===== */
+.pdf-results-panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.pdf-results-panel[hidden] { display: none; }
+.pdf-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: #fafbfc;
+}
+.pdf-results-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.3px;
+}
+.pdf-results-close {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.pdf-results-close:hover { background: var(--line-soft); color: var(--ink); }
+.pdf-results-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+.pdf-result-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: all 0.1s;
+}
+.pdf-result-item:hover { border-color: var(--teal); background: var(--teal-soft); }
+.pdf-result-item.is-active { border-color: var(--teal); background: var(--teal-soft); box-shadow: 0 0 0 2px rgba(31, 122, 140, 0.15); }
+.pdf-result-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pdf-result-rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+.pdf-result-meta {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.pdf-result-snippet {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .pdf-search-bar {
@@ -511,21 +612,6 @@ fieldset { border: 0; padding: 0; margin: 0; }
 }
 .pdf-search-status .status-label { color: var(--ink-2); font-weight: 600; }
 .pdf-search-status.is-error { background: #fbe1e1; color: var(--red); }
-.match-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  color: white;
-  cursor: pointer;
-  border: none;
-  font-family: inherit;
-  transition: filter 0.1s;
-}
-.match-pill:hover { filter: brightness(1.1); }
 
 /* ===== Toast ===== */
 .toast {

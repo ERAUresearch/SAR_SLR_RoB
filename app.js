@@ -394,29 +394,55 @@ function setSearchStatus(msg, isError) {
   pdfSearchStatus.classList.toggle('is-error', !!isError);
 }
 
-/* Render the top-K matches as a strip of clickable pills. */
-function renderMatchPills(matches) {
-  pdfSearchStatus.innerHTML = '';
-  pdfSearchStatus.classList.remove('is-error');
-  pdfSearchStatus.hidden = false;
-  const label = document.createElement('span');
-  label.className = 'status-label';
-  label.textContent = `Top ${matches.length} matches:`;
-  pdfSearchStatus.appendChild(label);
+/* Render the top-K matches as a vertical list in the right-side panel. */
+function renderResultsPanel(matches) {
+  const panel = document.getElementById('pdfResultsPanel');
+  const list = document.getElementById('pdfResultsList');
+  if (!matches || !matches.length) {
+    panel.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = '';
   matches.forEach((m, i) => {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'match-pill';
-    pill.style.background = AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
-    pill.textContent = `#${i + 1} · p.${m.page} · ${(m.sim * 100).toFixed(0)}%`;
-    pill.title = m.text.slice(0, 200) + (m.text.length > 200 ? '…' : '');
-    pill.addEventListener('click', () => jumpToMatch(m));
-    pdfSearchStatus.appendChild(pill);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'pdf-result-item';
+    item.dataset.rank = String(i + 1);
+    if (i === 0) item.classList.add('is-active');
+    const color = AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
+    const snippet = m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text;
+    item.innerHTML = `
+      <div class="pdf-result-item-head">
+        <span class="pdf-result-rank" style="background:${escapeHtml(color)}">${i + 1}</span>
+        <span class="pdf-result-meta">PAGE ${m.page} · ${(m.sim * 100).toFixed(0)}%</span>
+      </div>
+      <div class="pdf-result-snippet">${escapeHtml(snippet)}</div>
+    `;
+    item.addEventListener('click', () => {
+      jumpToMatch(m);
+      list.querySelectorAll('.is-active').forEach(el => el.classList.remove('is-active'));
+      item.classList.add('is-active');
+    });
+    list.appendChild(item);
   });
+  panel.hidden = false;
 }
+
+function hideResultsPanel() {
+  const panel = document.getElementById('pdfResultsPanel');
+  const list  = document.getElementById('pdfResultsList');
+  if (panel) panel.hidden = true;
+  if (list) list.innerHTML = '';
+}
+
+document.getElementById('pdfResultsClose').addEventListener('click', () => {
+  document.getElementById('pdfResultsPanel').hidden = true;
+});
 
 async function literalSearch(query) {
   try {
+    hideResultsPanel();
     const app = await waitForPdfReady();
     app.eventBus.dispatch('find', {
       source: window, type: '', query,
@@ -599,7 +625,8 @@ async function aiSearch(query) {
 
     clearAiOverlays();
     aiActiveMatches = top;
-    renderMatchPills(top);
+    renderResultsPanel(top);
+    setSearchStatus(`${top.length} matches — best: page ${top[0].page} (${(top[0].sim * 100).toFixed(0)}%)`);
 
     // Persistent listener: redraw overlays whenever PDF.js renders a page
     // (handles lazy load when user scrolls to a page, plus zoom re-renders).
@@ -699,6 +726,7 @@ function clearAiOverlays() {
     aiTextLayerListener = null;
   }
   aiActiveMatches = [];
+  hideResultsPanel();
   const doc = document.getElementById('studyPdfFrame').contentDocument;
   if (!doc) return;
   doc.querySelectorAll('[data-ai-overlay="1"]').forEach(el => el.remove());
