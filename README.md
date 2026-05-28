@@ -22,6 +22,10 @@ consensus meeting.
   responses live only in their browser's `localStorage`.
 - All 54 study PDFs are bundled in `/pdfs/` so reviewers can open each paper
   with one click from the form.
+- PDFs render in a bundled PDF.js viewer with literal + AI search.
+- AI search uses Transformers.js to run a small sentence-embedding model
+  (`all-MiniLM-L6-v2`, ~25 MB) entirely in the browser — no API keys or
+  servers. First use downloads + indexes; subsequent searches are instant.
 - Excel export uses the SheetJS library (`/lib/xlsx.full.min.js`).
 
 ## Repo layout

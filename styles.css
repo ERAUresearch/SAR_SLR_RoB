@@ -93,6 +93,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .back-link {
   background: none; border: 0; color: var(--teal);
   padding: 4px 0; margin-bottom: 12px; font-size: 14px; font-weight: 500;
+  text-align: left;
+  align-self: flex-start;
 }
 .back-link:hover { color: var(--teal-dark); }
 
@@ -124,9 +126,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 }
 /* Cleaner: use explicit markup-free approach with pseudo-elements */
 .onb-progress { gap: 6px; }
-.onb-progress[data-step="1"] { background: linear-gradient(to right, var(--teal) 0%, var(--teal) 33%, var(--line) 33%, var(--line) 100%); }
-.onb-progress[data-step="2"] { background: linear-gradient(to right, var(--teal) 0%, var(--teal) 66%, var(--line) 66%, var(--line) 100%); }
-.onb-progress[data-step="3"] { background: var(--teal); }
+.onb-progress[data-step="1"] { background: linear-gradient(to right, var(--teal) 0%, var(--teal) 50%, var(--line) 50%, var(--line) 100%); }
+.onb-progress[data-step="2"] { background: var(--teal); }
 .onb-progress { height: 4px; border-radius: 2px; background: var(--line); }
 .onb-progress::before, .onb-progress::after { display: none; }
 
@@ -383,7 +384,7 @@ fieldset { border: 0; padding: 0; margin: 0; }
 
 /* ===== Lock screen ===== */
 .lock-card { max-width: 460px; }
-.lock-card .field input {
+.lock-card #lockInput {
   letter-spacing: 4px;
   font-size: 18px;
   text-align: center;
@@ -396,29 +397,55 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .study-split { display: block; }
 .study-pdf-col { display: none; }
 
-/* Score card sticks beneath the app bar so the live judgement is always visible. */
+/* Score card stays at the top of its scroll container so the live judgement is always visible. */
 .score-card.sticky-score {
   position: sticky;
-  top: 60px;
+  top: 0;
   z-index: 5;
+  background: var(--card);
 }
 
 @media (min-width: 1100px) {
+  /* Make the study screen fill the viewport so each column can scroll on its own. */
+  #screen-study {
+    height: calc(100vh - 62px);  /* 62px = appbar height */
+    overflow: hidden;
+  }
+  .container.study-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .study-head, .back-link { flex-shrink: 0; }
+  .back-link { margin-bottom: 0; }
+  .study-head { margin-bottom: 0; }
   .study-split {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: clamp(460px, 36%, 620px) minmax(0, 1fr);
     gap: 24px;
-    align-items: start;
+    align-items: stretch;
+    overflow: hidden;
   }
-  .study-form-col { min-width: 0; }
+  .study-form-col {
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;  /* don't scroll the page when reaching ends */
+    padding-right: 8px;
+  }
   .study-pdf-col {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    position: sticky;
-    top: 76px;
-    height: calc(100vh - 96px);
-    min-height: 600px;
+    height: 100%;
+    min-height: 0;
   }
   .study-pdf-frame {
     flex: 1;
@@ -432,7 +459,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 }
 
 .pdf-search-bar {
-  display: flex; gap: 6px;
+  display: flex; gap: 6px; align-items: center;
+  flex-shrink: 0;
 }
 .pdf-search-bar input[type="search"] {
   flex: 1; min-width: 0;
@@ -449,6 +477,35 @@ fieldset { border: 0; padding: 0; margin: 0; }
 }
 .pdf-search-btn { padding: 8px 14px; font-size: 13px; }
 .pdf-search-clear { padding: 8px 12px; font-size: 13px; }
+
+/* Subtle AI toggle — small checkbox + label, blends with the search bar. */
+.ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.4px;
+  margin-left: 2px;
+  padding: 4px 6px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.ai-toggle:hover { background: var(--line-soft); color: var(--ink-2); }
+.ai-toggle input { width: 12px; height: 12px; cursor: pointer; accent-color: var(--teal); }
+.ai-toggle:has(input:checked) { color: var(--teal-dark); background: var(--teal-soft); }
+
+.pdf-search-status {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 4px 8px;
+  background: var(--teal-soft);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.pdf-search-status.is-error { background: #fbe1e1; color: var(--red); }
 
 /* ===== Footer ===== */
 .footer {

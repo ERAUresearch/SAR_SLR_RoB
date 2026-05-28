@@ -26,19 +26,23 @@
 
   <main id="main">
 
-    <!-- ===== Lock screen (shared access code) ===== -->
+    <!-- ===== Lock screen (shared access code + name) ===== -->
     <section class="screen" id="screen-lock" hidden>
       <div class="onboarding-wrap">
         <div class="onboarding-card lock-card">
           <div class="onb-emoji" aria-hidden="true">RoB</div>
           <h1>SAR SLR · Risk of Bias</h1>
-          <p class="lead">Co-authors only. Enter the shared access code to continue.</p>
+          <p class="lead">Co-authors only. Enter your full name and the shared access code.</p>
           <form id="lockForm" autocomplete="off">
             <label class="field">
-              <span class="field-label">Access code</span>
-              <input type="password" id="lockInput" inputmode="numeric" autocomplete="current-password" autofocus />
+              <span class="field-label">Your full name</span>
+              <input type="text" id="lockName" autocomplete="name" autofocus />
             </label>
-            <p class="lock-error" id="lockError" hidden>That code didn't match. Try again.</p>
+            <label class="field">
+              <span class="field-label">Access code</span>
+              <input type="password" id="lockInput" inputmode="numeric" autocomplete="current-password" />
+            </label>
+            <p class="lock-error" id="lockError" hidden></p>
             <div class="onb-actions">
               <button type="submit" class="primary-btn">Unlock →</button>
             </div>
@@ -72,26 +76,9 @@
             </div>
           </div>
 
-          <!-- Step 2: Identify yourself -->
+          <!-- Step 2: How to score -->
           <div class="onb-step" id="onb-step-2" hidden>
             <div class="onb-progress" data-step="2"></div>
-            <h2>What's your name?</h2>
-            <p class="lead">This labels your exported Excel so the team knows whose ratings are whose. It stays on this device.</p>
-
-            <label class="field">
-              <span class="field-label">Your full name</span>
-              <input type="text" id="onbName" autocomplete="name" />
-            </label>
-
-            <div class="onb-actions">
-              <button class="ghost-btn" data-onb-prev="1">← Back</button>
-              <button class="primary-btn" id="onbStep2Next" disabled data-onb-next="3">Next →</button>
-            </div>
-          </div>
-
-          <!-- Step 3: How to score -->
-          <div class="onb-step" id="onb-step-3" hidden>
-            <div class="onb-progress" data-step="3"></div>
             <h2>How the scoring works</h2>
             <p class="lead">Same five options for every question:</p>
 
@@ -121,7 +108,7 @@
             <p class="hint">Tip: add a one-line justification for any <strong>No</strong> or <strong>Cannot tell</strong>. The field appears automatically.</p>
 
             <div class="onb-actions">
-              <button class="ghost-btn" data-onb-prev="2">← Back</button>
+              <button class="ghost-btn" data-onb-prev="1">← Back</button>
               <button class="primary-btn" id="onbFinish">Open the dashboard →</button>
             </div>
           </div>
@@ -230,8 +217,13 @@
             <form class="pdf-search-bar" id="pdfSearchForm" role="search">
               <input type="search" id="pdfSearchInput" placeholder="Search in PDF…" aria-label="Search in PDF" />
               <button type="submit" class="primary-btn pdf-search-btn">Search</button>
-              <button type="button" class="ghost-btn pdf-search-clear" id="pdfSearchClear" title="Clear search and reload PDF" aria-label="Clear search">Clear</button>
+              <button type="button" class="ghost-btn pdf-search-clear" id="pdfSearchClear" title="Clear search" aria-label="Clear search">Clear</button>
+              <label class="ai-toggle" title="Use semantic AI search — runs entirely in your browser. First use downloads a small model.">
+                <input type="checkbox" id="aiSearchMode" />
+                <span>AI</span>
+              </label>
             </form>
+            <div class="pdf-search-status" id="pdfSearchStatus" hidden></div>
             <iframe class="study-pdf-frame" id="studyPdfFrame" title="Study PDF"></iframe>
           </aside>
         </div>
