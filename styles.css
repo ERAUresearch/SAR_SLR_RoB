@@ -620,6 +620,24 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .pdf-search-status .status-label { color: var(--ink-2); font-weight: 600; }
 .pdf-search-status.is-error { background: #fbe1e1; color: var(--red); }
 
+/* ===== Question hover tooltip (follows cursor) ===== */
+.q-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: var(--ink);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 360px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  letter-spacing: 0.1px;
+}
+.q-tooltip[hidden] { display: none; }
+.qcard h3 { cursor: help; }
+
 /* ===== Toast ===== */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);

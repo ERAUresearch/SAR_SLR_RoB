@@ -10,14 +10,46 @@ const LOCK_KEY = 'sar_slr_rob:unlocked';
 const ACCESS_CODE = '123456';
 
 const QUESTIONS = [
-  { id: 'Q1', short: 'Objective',          text: 'Is the study objective or research question clearly stated?' },
-  { id: 'Q2', short: 'Method detail',      text: 'Is the UAV, SAR, deconfliction, ADS-B, or mixed-airspace method described with enough detail to support interpretation or replication?' },
-  { id: 'Q3', short: 'Method fit',         text: 'Is the selected method appropriate for the stated SAR optimization or deconfliction problem?' },
-  { id: 'Q4', short: 'Comparators',        text: 'Are comparators, baselines, benchmarks, or reference cases clearly described and appropriate?' },
-  { id: 'Q5', short: 'Metrics',            text: 'Are performance metrics clearly defined and aligned with SAR mission effectiveness, deconfliction safety, or operational feasibility?' },
-  { id: 'Q6', short: 'Scenario realism',   text: 'Are the scenarios operationally realistic enough for SAR, helicopter interaction, low-altitude airspace, UTM, U-space, or mixed manned-unmanned operations?' },
-  { id: 'Q7', short: 'Constraints',        text: 'Does the study address uncertainty, latency, packet loss, degraded communications, platform failure, sensing limitations, or other operational constraints?' },
-  { id: 'Q8', short: 'Validation/repro',   text: 'Is validation maturity adequate, and is enough information provided to judge reproducibility?' },
+  {
+    id: 'Q1', short: 'Objective',
+    text: 'Is the study objective or research question clearly stated?',
+    simple: "Did the authors clearly say what they're trying to find out or solve? Look for an explicit research question, aim, or objective in the abstract or introduction. If you have to guess what the paper is really about, the answer is No or Partly."
+  },
+  {
+    id: 'Q2', short: 'Method detail',
+    text: 'Is the UAV, SAR, deconfliction, ADS-B, or mixed-airspace method described with enough detail to support interpretation or replication?',
+    simple: "Could another researcher rebuild what this paper did from the description alone? Look for enough specifics about the algorithm, hardware, simulator, and inputs. Vague, high-level summaries with no concrete details = No or Partly."
+  },
+  {
+    id: 'Q3', short: 'Method fit',
+    text: 'Is the selected method appropriate for the stated SAR optimization or deconfliction problem?',
+    simple: "Does the chosen approach actually match the problem? A static planner for a dynamic environment, or a centralized algorithm for a swarm with no comms, would be a mismatch. The method's strengths should line up with what the paper claims to solve."
+  },
+  {
+    id: 'Q4', short: 'Comparators',
+    text: 'Are comparators, baselines, benchmarks, or reference cases clearly described and appropriate?',
+    simple: "Is the new method compared against something reasonable — a prior algorithm, a sensible baseline, or a published benchmark? A paper that presents results in isolation with no comparison, or compares only against an obviously weak straw-man, scores low here."
+  },
+  {
+    id: 'Q5', short: 'Metrics',
+    text: 'Are performance metrics clearly defined and aligned with SAR mission effectiveness, deconfliction safety, or operational feasibility?',
+    simple: "Are the numbers they report (search time, coverage %, collision rate, separation distance) clearly defined and actually relevant to SAR or airspace safety? Generic metrics like 'computation time' without any mission-relevance link weakens this score."
+  },
+  {
+    id: 'Q6', short: 'Scenario realism',
+    text: 'Are the scenarios operationally realistic enough for SAR, helicopter interaction, low-altitude airspace, UTM, U-space, or mixed manned-unmanned operations?',
+    simple: "Are the test scenarios believable for a real SAR mission or real air-traffic conditions? A flat 2D grid with no obstacles is less realistic than complex terrain with weather, comms gaps, or actual manned aircraft in the airspace."
+  },
+  {
+    id: 'Q7', short: 'Constraints',
+    text: 'Does the study address uncertainty, latency, packet loss, degraded communications, platform failure, sensing limitations, or other operational constraints?',
+    simple: "Does the paper grapple with real-world headaches — network drops, GPS noise, sensor errors, drone failures, bad weather? Work that assumes perfect comms, perfect sensors, and perfect platforms gets a No here."
+  },
+  {
+    id: 'Q8', short: 'Validation/repro',
+    text: 'Is validation maturity adequate, and is enough information provided to judge reproducibility?',
+    simple: "How thoroughly was the work actually tested — pure simulation, hardware-in-the-loop, or real flight tests? And are the data, code, seeds, or parameters available enough that someone could verify the results? Simulation-only with no released artifacts drops this score."
+  },
 ];
 
 const RESPONSES = [
@@ -357,6 +389,52 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 let currentStudyId = null;
 let currentPdfHref = '';
 let saveTimer = null;
+
+/* ----- Hover tooltips on question headings ----- */
+const qTooltipEl = document.getElementById('qTooltip');
+
+function attachQuestionTooltips(formRoot) {
+  formRoot.querySelectorAll('.qcard h3').forEach(h3 => {
+    const numEl = h3.querySelector('.qcard-num');
+    const qId = numEl ? numEl.textContent.trim() : '';
+    const def = QUESTIONS.find(q => q.id === qId);
+    if (!def || !def.simple) return;
+    h3.addEventListener('mouseenter', e => {
+      qTooltipEl.textContent = def.simple;
+      qTooltipEl.hidden = false;
+      positionQTooltip(e.clientX, e.clientY);
+    });
+    h3.addEventListener('mousemove', e => {
+      positionQTooltip(e.clientX, e.clientY);
+    });
+    h3.addEventListener('mouseleave', () => {
+      qTooltipEl.hidden = true;
+    });
+  });
+}
+
+function positionQTooltip(x, y) {
+  const t = qTooltipEl;
+  if (t.hidden) return;
+  const offset = 16;
+  const margin = 8;
+  // Default: bottom-right of cursor.
+  let left = x + offset;
+  let top  = y + offset;
+  // Measure (offsetWidth is 0 if display:none; we just set hidden=false, so should be measurable).
+  const w = t.offsetWidth;
+  const h = t.offsetHeight;
+  // Flip if it overflows the viewport.
+  if (left + w + margin > window.innerWidth) left = x - w - offset;
+  if (top + h + margin > window.innerHeight) top  = y - h - offset;
+  if (left < margin) left = margin;
+  if (top  < margin) top  = margin;
+  t.style.left = left + 'px';
+  t.style.top  = top  + 'px';
+}
+
+/* Hide the tooltip on any navigation (defensive). */
+window.addEventListener('hashchange', () => { if (qTooltipEl) qTooltipEl.hidden = true; });
 
 /* PDF.js viewer is in an iframe (same-origin), so we can call its API directly. */
 function getPdfApp() {
@@ -926,6 +1004,9 @@ function renderStudy(id) {
     `;
     form.appendChild(card);
   }
+
+  // Wire hover tooltips on each question heading (plain-English explanations).
+  attachQuestionTooltips(form);
 
   // Wire response clicks. preventDefault stops the <label>'s default behaviour
   // of focusing the associated radio input — which, for inputs further down the
