@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SAR SLR · Risk of Bias Assessment</title>
+  <meta name="description" content="Risk of Bias / Study Quality Appraisal — three-reviewer form for the Drone-Based SAR + ADS-B systematic literature review." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f7a8c'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-family='-apple-system,Segoe UI,sans-serif' font-size='16' font-weight='700' fill='white'%3ERoB%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- ===== Top app bar ===== -->
+  <header class="appbar" id="appbar" hidden>
+    <div class="appbar-inner">
+      <button class="appbar-title" id="goHome" aria-label="Go to dashboard">
+        <span class="appbar-logo">RoB</span>
+        <span class="appbar-titletext">SAR SLR · Risk of Bias</span>
+      </button>
+      <div class="appbar-right">
+        <span class="reviewer-chip" id="reviewerChip" title="Your reviewer profile"></span>
+        <button class="ghost-btn" id="helpBtn" title="Open the onboarding again">Help</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ===== Onboarding ===== -->
+    <section class="screen" id="screen-onboarding" hidden>
+      <div class="onboarding-wrap">
+        <div class="onboarding-card">
+
+          <!-- Step 1: Welcome -->
+          <div class="onb-step" id="onb-step-1">
+            <div class="onb-progress" data-step="1"></div>
+            <div class="onb-emoji" aria-hidden="true">RoB</div>
+            <h1>Welcome, co-author.</h1>
+            <p class="lead">
+              This is the Risk-of-Bias appraisal for our systematic literature review on
+              <em>drone-based search and rescue with ADS-B-enabled deconfliction</em>.
+            </p>
+            <ul class="onb-bullets">
+              <li><strong>54 studies</strong>, <strong>8 quality questions</strong> each.</li>
+              <li>Your work <strong>saves automatically</strong> in your browser. Close the tab and come back anytime.</li>
+              <li>You rate <strong>independently</strong>. The three of us meet for consensus after everyone exports.</li>
+              <li>Plan on roughly 5–10 minutes per study.</li>
+            </ul>
+            <div class="onb-actions">
+              <button class="primary-btn" data-onb-next="2">Get started →</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Identify yourself -->
+          <div class="onb-step" id="onb-step-2" hidden>
+            <div class="onb-progress" data-step="2"></div>
+            <h2>Who are you?</h2>
+            <p class="lead">This just labels your exported Excel — it stays on this device.</p>
+
+            <label class="field">
+              <span class="field-label">Your name</span>
+              <input type="text" id="onbName" placeholder="e.g., Dr. Kush Patel" autocomplete="name" />
+            </label>
+
+            <fieldset class="field">
+              <legend class="field-label">Which reviewer slot are you?</legend>
+              <p class="hint">Coordinate with your co-authors so each person takes a different slot.</p>
+              <div class="role-picker">
+                <label class="role-card"><input type="radio" name="onbRole" value="R1" /><span class="role-title">R1</span><span class="role-sub">Reviewer 1</span></label>
+                <label class="role-card"><input type="radio" name="onbRole" value="R2" /><span class="role-title">R2</span><span class="role-sub">Reviewer 2</span></label>
+                <label class="role-card"><input type="radio" name="onbRole" value="R3" /><span class="role-title">R3</span><span class="role-sub">Reviewer 3</span></label>
+              </div>
+            </fieldset>
+
+            <div class="onb-actions">
+              <button class="ghost-btn" data-onb-prev="1">← Back</button>
+              <button class="primary-btn" id="onbStep2Next" disabled data-onb-next="3">Next →</button>
+            </div>
+          </div>
+
+          <!-- Step 3: How to score -->
+          <div class="onb-step" id="onb-step-3" hidden>
+            <div class="onb-progress" data-step="3"></div>
+            <h2>How the scoring works</h2>
+            <p class="lead">Same five options for every question:</p>
+
+            <div class="score-legend">
+              <div class="legend-row"><span class="pill pill-yes">Yes</span><span>= 1 point. The study clearly meets the criterion.</span></div>
+              <div class="legend-row"><span class="pill pill-partly">Partly</span><span>= 0.5. Meets it incompletely or with caveats.</span></div>
+              <div class="legend-row"><span class="pill pill-no">No</span><span>= 0. Does not meet the criterion.</span></div>
+              <div class="legend-row"><span class="pill pill-ct">Cannot tell</span><span>= 0. Reporting is unclear; document why.</span></div>
+              <div class="legend-row"><span class="pill pill-na">N/A</span><span>excluded from the denominator (use sparingly).</span></div>
+            </div>
+
+            <details class="onb-details">
+              <summary>See the eight questions</summary>
+              <ol class="qlist" id="onbQuestionList"></ol>
+            </details>
+
+            <details class="onb-details">
+              <summary>How the overall judgement is computed</summary>
+              <ul class="onb-bullets">
+                <li><strong>Low concern</strong> — score ≥ 75% <em>and</em> no more than 1 No across applicable items.</li>
+                <li><strong>Some concern</strong> — score 50–74%, or 2–3 No ratings.</li>
+                <li><strong>High concern</strong> — score &lt; 50%, or 4+ No ratings.</li>
+                <li><strong>Unclear</strong> — set manually if too much info is missing to judge fairly.</li>
+              </ul>
+            </details>
+
+            <p class="hint">Tip: add a one-line justification for any <strong>No</strong> or <strong>Cannot tell</strong>. The field appears automatically.</p>
+
+            <div class="onb-actions">
+              <button class="ghost-btn" data-onb-prev="2">← Back</button>
+              <button class="primary-btn" id="onbFinish">Open the dashboard →</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Dashboard ===== -->
+    <section class="screen" id="screen-dashboard" hidden>
+      <div class="container">
+
+        <div class="dashboard-head">
+          <div>
+            <h1 class="dash-greeting" id="dashGreeting">Your dashboard</h1>
+            <p class="dash-sub" id="dashSub"></p>
+          </div>
+          <div class="dash-actions">
+            <button class="primary-btn" id="exportBtn">Download my Excel</button>
+            <button class="ghost-btn" id="resetBtn" title="Clear all of your responses on this device">Reset</button>
+          </div>
+        </div>
+
+        <div class="stat-row" id="statRow"></div>
+
+        <div class="progress-track" aria-label="Overall progress">
+          <div class="progress-fill" id="overallProgress"></div>
+        </div>
+
+        <div class="tracks-help">
+          <p class="hint">
+            Studies are grouped by track. <strong>Track A</strong> = SAR optimization,
+            <strong>Track B</strong> = deconfliction / UTM / ADS-B,
+            <strong>Track C</strong> = joint manned-unmanned operations.
+          </p>
+        </div>
+
+        <div id="trackList"></div>
+
+      </div>
+    </section>
+
+    <!-- ===== Per-study form ===== -->
+    <section class="screen" id="screen-study" hidden>
+      <div class="container">
+
+        <button class="back-link" id="backToDash">← All studies</button>
+
+        <div class="study-head">
+          <div class="study-meta">
+            <span class="track-badge" id="studyTrack"></span>
+            <span class="study-id" id="studyId"></span>
+            <span class="study-year" id="studyYear"></span>
+          </div>
+          <h1 class="study-citation" id="studyCitation"></h1>
+          <div class="study-actions">
+            <a class="primary-btn" id="studyPdf" target="_blank" rel="noopener">Open PDF in new tab ↗</a>
+            <span class="save-indicator" id="saveIndicator" aria-live="polite"></span>
+          </div>
+        </div>
+
+        <div class="score-card">
+          <div>
+            <div class="score-label">Live score</div>
+            <div class="score-value"><span id="liveScore">—</span></div>
+          </div>
+          <div>
+            <div class="score-label">Applicable items</div>
+            <div class="score-value-sub"><span id="liveApplicable">0</span> / 8</div>
+          </div>
+          <div>
+            <div class="score-label">Provisional judgement</div>
+            <div class="score-value-sub"><span class="judgement-pill" id="liveJudgement">Not started</span></div>
+          </div>
+        </div>
+
+        <div id="questionsForm"></div>
+
+        <div class="study-foot">
+          <button class="ghost-btn" id="prevStudyBtn">← Previous study</button>
+          <button class="primary-btn" id="nextStudyBtn">Save & next study →</button>
+        </div>
+
+        <div class="study-override">
+          <details>
+            <summary>Override the provisional judgement</summary>
+            <p class="hint">Use this only if the auto-computed judgement does not reflect your reading — e.g., you choose <em>Unclear</em> because too much information is missing to judge fairly.</p>
+            <select id="judgementOverride">
+              <option value="">Use auto-computed judgement</option>
+              <option value="Low concern">Low concern</option>
+              <option value="Some concern">Some concern</option>
+              <option value="High concern">High concern</option>
+              <option value="Unclear">Unclear</option>
+            </select>
+            <label class="field" style="margin-top: 12px;">
+              <span class="field-label">Reviewer's overall note (optional)</span>
+              <textarea id="studyNote" rows="3" placeholder="Brief overall comment on this study — visible in your exported Excel."></textarea>
+            </label>
+          </details>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===== Help / About modal-like screen ===== -->
+    <section class="screen" id="screen-help" hidden>
+      <div class="container narrow">
+        <button class="back-link" id="helpBack">← Back</button>
+        <h1>About this tool</h1>
+        <p>
+          This form supports the Risk-of-Bias / Study-Quality Appraisal section of the systematic literature
+          review <em>Optimizing Drone-Based Search and Rescue With ADS-B-Enabled Deconfliction in Mixed Manned-Unmanned Operations</em>.
+          The eight-question instrument is a modified, MMAT-informed engineering quality checklist (not the unmodified MMAT 2018).
+        </p>
+
+        <h2>How to use it</h2>
+        <ol>
+          <li>Open a study card from the dashboard.</li>
+          <li>Click <strong>Open PDF in new tab</strong> and rate each of the eight questions.</li>
+          <li>Add a short justification for any <em>No</em> or <em>Cannot tell</em>.</li>
+          <li>Move to the next study or return to the dashboard — everything saves automatically.</li>
+          <li>When you're done, click <strong>Download my Excel</strong> on the dashboard.</li>
+        </ol>
+
+        <h2>Where your data lives</h2>
+        <p>
+          All of your responses are stored only in <strong>this browser, on this device</strong>
+          (<code>localStorage</code>). Nothing is sent anywhere. If you clear your browser data, your
+          ratings are deleted — so export your Excel before clearing storage. Export early and often.
+        </p>
+
+        <h2>Switch reviewer slot or change name</h2>
+        <p>
+          <button class="ghost-btn" id="changeRoleBtn">Re-open the onboarding</button>
+        </p>
+
+        <h2>Questions</h2>
+        <ol class="qlist" id="helpQuestionList"></ol>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <small>
+        SAR-SLR Risk-of-Bias appraisal · Three-reviewer procedure ·
+        <a href="https://github.com/ERAUresearch/SAR_SLR_RoB" target="_blank" rel="noopener">source on GitHub</a>
+      </small>
+    </div>
+  </footer>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="lib/xlsx.full.min.js"></script>
+  <script src="studies.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
