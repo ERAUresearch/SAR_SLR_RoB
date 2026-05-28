@@ -461,14 +461,13 @@ function loadStudyPdf() {
   }
   const absPdfUrl = new URL(currentPdfHref, window.location.href).href;
   pdfFrame.src = 'lib/pdfjs/web/viewer.html?file=' + encodeURIComponent(absPdfUrl);
-  clearAiOverlays();  // any prior overlays belong to a different doc
+  hideResultsPanel();  // any prior matches belong to a different doc
 }
 
-/* ----- PDF search: literal (PDF.js find) and AI (semantic) ----- */
+/* ----- PDF search (literal via PDF.js find) ----- */
 const pdfSearchInput = document.getElementById('pdfSearchInput');
 const pdfSearchClear = document.getElementById('pdfSearchClear');
 const pdfSearchForm  = document.getElementById('pdfSearchForm');
-const aiSearchToggle = document.getElementById('aiSearchMode');
 const pdfSearchStatus = document.getElementById('pdfSearchStatus');
 
 function setSearchStatus(msg, isError) {
@@ -478,7 +477,7 @@ function setSearchStatus(msg, isError) {
   pdfSearchStatus.classList.toggle('is-error', !!isError);
 }
 
-/* Render literal or AI matches as a vertical list in the right-side panel. */
+/* Render literal matches as a vertical list in the right-side panel. */
 function renderResultsPanel(matches) {
   const panel = document.getElementById('pdfResultsPanel');
   const list = document.getElementById('pdfResultsList');
@@ -488,8 +487,7 @@ function renderResultsPanel(matches) {
     list.innerHTML = '';
     return;
   }
-  const isLiteral = matches[0] && matches[0].kind === 'literal';
-  if (title) title.textContent = isLiteral ? 'Matches' : 'AI matches';
+  if (title) title.textContent = 'Matches';
   list.innerHTML = '';
   matches.forEach((m, i) => {
     const item = document.createElement('button');
@@ -497,34 +495,26 @@ function renderResultsPanel(matches) {
     item.className = 'pdf-result-item';
     item.dataset.rank = String(i + 1);
     if (i === 0) item.classList.add('is-active');
-    const color = isLiteral
-      ? 'var(--teal)'
-      : AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
-    const meta = isLiteral
-      ? `PAGE ${m.page}`
-      : `PAGE ${m.page} · ${(m.sim * 100).toFixed(0)}%`;
-    const snippetHtml = renderSnippetHtml(m);
     item.innerHTML = `
       <div class="pdf-result-item-head">
-        <span class="pdf-result-rank" style="background:${escapeHtml(color)}">${i + 1}</span>
-        <span class="pdf-result-meta">${escapeHtml(meta)}</span>
+        <span class="pdf-result-rank" style="background:var(--teal)">${i + 1}</span>
+        <span class="pdf-result-meta">PAGE ${m.page}</span>
       </div>
-      <div class="pdf-result-snippet">${snippetHtml}</div>
+      <div class="pdf-result-snippet">${renderSnippetHtml(m)}</div>
     `;
     item.addEventListener('click', () => {
       list.querySelectorAll('.is-active').forEach(el => el.classList.remove('is-active'));
       item.classList.add('is-active');
-      if (isLiteral) jumpToLiteralMatch(m);
-      else jumpToMatch(m);
+      jumpToLiteralMatch(m);
     });
     list.appendChild(item);
   });
   panel.hidden = false;
 }
 
-/* Build snippet HTML — bolds the literal hit when offsets are present. */
+/* Build snippet HTML — bolds the literal hit using stored offsets. */
 function renderSnippetHtml(m) {
-  if (m.kind === 'literal' && typeof m.hitOffset === 'number' && m.hitLen > 0) {
+  if (typeof m.hitOffset === 'number' && m.hitLen > 0) {
     const before = m.text.slice(0, m.hitOffset);
     const hit    = m.text.slice(m.hitOffset, m.hitOffset + m.hitLen);
     const after  = m.text.slice(m.hitOffset + m.hitLen);
@@ -676,278 +666,17 @@ pdfSearchForm.addEventListener('submit', e => {
   e.preventDefault();
   const q = pdfSearchInput.value.trim();
   if (!q) { handleSearchClear(); return; }
-  if (aiSearchToggle.checked) {
-    aiSearch(q);
-  } else {
-    literalSearch(q);
-  }
+  literalSearch(q);
 });
 function handleSearchClear() {
   pdfSearchInput.value = '';
   literalSearchClear();
-  clearAiOverlays();
+  hideResultsPanel();
   setSearchStatus('');
 }
 pdfSearchClear.addEventListener('click', handleSearchClear);
 
-/* ----- AI semantic search (Transformers.js + MiniLM) ----- */
-let _transformersPromise = null;
-let _extractorPromise = null;
-const aiCache = new Map();  // pdfHref -> [{page, text, bbox, embedding(Float32Array)}, ...]
 
-async function loadTransformers() {
-  if (!_transformersPromise) {
-    setSearchStatus('Loading AI model (one-time)…');
-    _transformersPromise = import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm')
-      .then(mod => { mod.env.allowLocalModels = false; return mod; });
-  }
-  return _transformersPromise;
-}
-async function getExtractor() {
-  if (!_extractorPromise) {
-    const t = await loadTransformers();
-    _extractorPromise = t.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      progress_callback: (p) => {
-        if (p && p.status === 'progress' && p.file && p.progress != null) {
-          setSearchStatus(`Loading AI model: ${p.file} ${Math.round(p.progress)}%`);
-        }
-      },
-    });
-  }
-  return _extractorPromise;
-}
-
-async function extractParagraphsFromPdf(app) {
-  const doc = app.pdfDocument;
-  const out = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    setSearchStatus(`Reading PDF: page ${p} / ${doc.numPages}…`);
-    const page = await doc.getPage(p);
-    const tc = await page.getTextContent();
-    const paras = groupItemsIntoParagraphs(tc.items);
-    for (const para of paras) {
-      const text = para.text;
-      if (text.length < 30) continue;  // skip headers/labels
-      out.push({ page: p, text, bbox: para.bbox });
-    }
-  }
-  return out;
-}
-
-/* Group PDF.js text items into paragraphs based on vertical gaps in PDF coord space. */
-function groupItemsIntoParagraphs(items) {
-  const paras = [];
-  let cur = null, lastY = null, lastLineH = 10;
-  const finalise = () => {
-    if (cur && cur.items.length) {
-      cur.text = cur.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
-      if (cur.text) paras.push(cur);
-    }
-    cur = null;
-  };
-  for (const it of items) {
-    const str = (it.str || '');
-    if (!str) continue;
-    const tr = it.transform;
-    const x = tr[4], y = tr[5];
-    const h = it.height || lastLineH;
-    if (!cur) {
-      cur = { items: [], xMin: x, yMin: y, yMax: y + h, xMax: x + (it.width || 0) };
-    } else if (lastY != null) {
-      const dy = lastY - y;  // PDF y goes up, so positive dy = next line is below
-      // New paragraph if vertical gap is more than ~1.7x line height (and reasonable)
-      if (dy > h * 1.7 && dy < 200) {
-        finalise();
-        cur = { items: [], xMin: x, yMin: y, yMax: y + h, xMax: x + (it.width || 0) };
-      }
-    }
-    cur.items.push(it);
-    cur.xMin = Math.min(cur.xMin, x);
-    cur.yMin = Math.min(cur.yMin, y);
-    cur.yMax = Math.max(cur.yMax, y + h);
-    cur.xMax = Math.max(cur.xMax, x + (it.width || 0));
-    lastY = y; lastLineH = h;
-  }
-  finalise();
-  return paras.map(p => ({
-    text: p.text,
-    bbox: { x: p.xMin, y: p.yMin, w: p.xMax - p.xMin, h: p.yMax - p.yMin },
-  }));
-}
-
-async function getOrComputeEmbeddings(pdfHref, app) {
-  if (aiCache.has(pdfHref)) return aiCache.get(pdfHref);
-  const extractor = await getExtractor();
-  const paragraphs = await extractParagraphsFromPdf(app);
-  const embedded = [];
-  for (let i = 0; i < paragraphs.length; i++) {
-    setSearchStatus(`Indexing paragraphs: ${i + 1} / ${paragraphs.length}…`);
-    const out = await extractor(paragraphs[i].text, { pooling: 'mean', normalize: true });
-    embedded.push({ ...paragraphs[i], embedding: out.data });
-  }
-  aiCache.set(pdfHref, embedded);
-  return embedded;
-}
-
-function cosine(a, b) {
-  let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
-  return s;
-}
-
-/* Color palette for ranked AI matches — best is the most saturated orange. */
-const AI_COLORS = [
-  { border: '#d97706', bg: 'rgba(251, 191, 36, 0.22)' },   // #1 orange
-  { border: '#ea580c', bg: 'rgba(251, 146, 60, 0.18)' },   // #2 darker orange
-  { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.14)' },    // #3 teal
-  { border: '#7c3aed', bg: 'rgba(124, 58, 237, 0.13)' },   // #4 purple
-  { border: '#475569', bg: 'rgba(71, 85, 105, 0.11)' },    // #5 slate
-];
-const AI_TOP_K = 5;
-
-let aiActiveMatches = [];           // currently-highlighted matches (with .page, .bbox, .sim, .text)
-let aiTextLayerListener = null;     // re-attached on each new search so we can detach it
-
-async function aiSearch(query) {
-  try {
-    const app = await waitForPdfReady();
-    const extractor = await getExtractor();
-    const paragraphs = await getOrComputeEmbeddings(currentPdfHref, app);
-    setSearchStatus('Searching…');
-    const qOut = await extractor(query, { pooling: 'mean', normalize: true });
-    const qEmb = qOut.data;
-
-    const scored = paragraphs
-      .map(p => ({ ...p, sim: cosine(p.embedding, qEmb) }))
-      .sort((a, b) => b.sim - a.sim);
-    const topRaw = scored.slice(0, AI_TOP_K);
-    if (!topRaw.length || topRaw[0].sim < 0.05) {
-      clearAiOverlays();
-      setSearchStatus('No semantic matches in this PDF.', true);
-      return;
-    }
-    // Drop tail matches that are much weaker than the best (relative cutoff).
-    const cutoff = Math.max(0.10, topRaw[0].sim * 0.55);
-    const top = topRaw.filter(m => m.sim >= cutoff);
-    top.forEach((m, i) => (m.rank = i + 1));
-
-    clearAiOverlays();
-    aiActiveMatches = top;
-    renderResultsPanel(top);
-    setSearchStatus(`${top.length} matches — best: page ${top[0].page} (${(top[0].sim * 100).toFixed(0)}%)`);
-
-    // Persistent listener: redraw overlays whenever PDF.js renders a page
-    // (handles lazy load when user scrolls to a page, plus zoom re-renders).
-    aiTextLayerListener = (e) => {
-      const pageHits = aiActiveMatches.filter(m => m.page === e.pageNumber);
-      pageHits.forEach(h => drawAiOverlay(app, h));
-    };
-    app.eventBus.on('textlayerrendered', aiTextLayerListener);
-
-    // Draw overlays for pages already rendered.
-    for (const m of top) {
-      const pv = app.pdfViewer.getPageView(m.page - 1);
-      if (pv && pv.textLayer && pv.textLayer.div && pv.textLayer.div.children.length > 0) {
-        drawAiOverlay(app, m);
-      }
-    }
-
-    // Jump to the best match — destArray scrolls so the paragraph top sits near the viewport top.
-    const best = top[0];
-    const padY = 30;
-    app.pdfViewer.scrollPageIntoView({
-      pageNumber: best.page,
-      destArray: [null, { name: 'XYZ' }, best.bbox.x - 8, best.bbox.y + best.bbox.h + padY, null],
-    });
-  } catch (e) {
-    console.error(e);
-    setSearchStatus('AI search failed: ' + (e.message || e), true);
-  }
-}
-
-function jumpToMatch(m) {
-  const app = getPdfApp();
-  if (!app) return;
-  // Step 1: ask PDF.js to bring the page (and roughly the bbox) into view.
-  // Step 2: once the overlay is in the DOM, center it in the viewport.
-  app.pdfViewer.scrollPageIntoView({
-    pageNumber: m.page,
-    destArray: [null, { name: 'XYZ' }, m.bbox.x - 8, m.bbox.y + m.bbox.h + 30, null],
-  });
-  centerOverlayWhenReady('[data-ai-overlay="1"][data-rank="' + m.rank + '"]', m.page);
-}
-
-function drawAiOverlay(app, hit) {
-  const pageView = app.pdfViewer.getPageView(hit.page - 1);
-  if (!pageView || !pageView.viewport) return;
-  // Don't double-draw on re-renders.
-  if (pageView.div.querySelector(`[data-ai-overlay="1"][data-rank="${hit.rank}"]`)) return;
-
-  const vp = pageView.viewport;
-  const [x1, y1] = vp.convertToViewportPoint(hit.bbox.x, hit.bbox.y);
-  const [x2, y2] = vp.convertToViewportPoint(hit.bbox.x + hit.bbox.w, hit.bbox.y + hit.bbox.h);
-  const left = Math.min(x1, x2) - 4;
-  const top  = Math.min(y1, y2) - 4;
-  const w    = Math.abs(x2 - x1) + 8;
-  const h    = Math.abs(y2 - y1) + 8;
-
-  const c = AI_COLORS[Math.min(hit.rank - 1, AI_COLORS.length - 1)];
-
-  const div = pageView.div.ownerDocument.createElement('div');
-  div.dataset.aiOverlay = '1';
-  div.dataset.rank = String(hit.rank);
-  Object.assign(div.style, {
-    position: 'absolute',
-    left: left + 'px', top: top + 'px',
-    width: w + 'px', height: h + 'px',
-    border: '2.5px solid ' + c.border,
-    background: c.bg,
-    borderRadius: '6px',
-    pointerEvents: 'none',
-    zIndex: '100',
-    boxShadow: '0 0 0 1px ' + c.border + '55',
-  });
-
-  // Numbered badge on the top-left corner, sitting above the box.
-  const badge = pageView.div.ownerDocument.createElement('div');
-  badge.textContent = `#${hit.rank} · ${(hit.sim * 100).toFixed(0)}%`;
-  Object.assign(badge.style, {
-    position: 'absolute',
-    top: '-12px', left: '-6px',
-    background: c.border,
-    color: 'white',
-    fontSize: '11px',
-    fontWeight: '700',
-    padding: '2px 8px',
-    borderRadius: '999px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-    letterSpacing: '0.3px',
-  });
-  div.appendChild(badge);
-  pageView.div.appendChild(div);
-}
-
-function clearAiOverlays() {
-  const app = getPdfApp();
-  if (app && aiTextLayerListener) {
-    try { app.eventBus.off('textlayerrendered', aiTextLayerListener); } catch (_) {}
-    aiTextLayerListener = null;
-  }
-  aiActiveMatches = [];
-  hideResultsPanel();
-  const doc = document.getElementById('studyPdfFrame').contentDocument;
-  if (!doc) return;
-  doc.querySelectorAll('[data-ai-overlay="1"]').forEach(el => el.remove());
-}
-
-aiSearchToggle.addEventListener('change', () => {
-  // Clear any leftover state when toggling modes
-  literalSearchClear();
-  clearAiOverlays();
-  setSearchStatus('');
-});
 
 function renderStudy(id) {
   const s = STUDIES.find(x => x.id === id);
@@ -971,7 +700,7 @@ function renderStudy(id) {
     loadStudyPdf();
   } else {
     literalSearchClear();
-    clearAiOverlays();
+    hideResultsPanel();
   }
 
   // Build questions
