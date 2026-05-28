@@ -42,8 +42,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .container.narrow { max-width: 720px; }
 .container.study-container {
   max-width: none;
-  padding-left: max(16px, 2in);
-  padding-right: max(16px, 2in);
+  padding-left: max(16px, 1in);
+  padding-right: max(16px, 1in);
 }
 
 /* ===== App bar ===== */
@@ -500,23 +500,32 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .pdf-search-status {
   font-size: 12px;
   color: var(--ink-3);
-  padding: 4px 8px;
+  padding: 6px 8px;
   background: var(--teal-soft);
   border-radius: 6px;
   flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
+.pdf-search-status .status-label { color: var(--ink-2); font-weight: 600; }
 .pdf-search-status.is-error { background: #fbe1e1; color: var(--red); }
-
-/* ===== Footer ===== */
-.footer {
-  margin-top: 60px;
-  padding: 16px 0;
-  border-top: 1px solid var(--line);
-  color: var(--ink-3);
-  background: white;
+.match-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: filter 0.1s;
 }
-.footer small { font-size: 12px; }
-.footer a { color: var(--ink-3); }
+.match-pill:hover { filter: brightness(1.1); }
 
 /* ===== Toast ===== */
 .toast {

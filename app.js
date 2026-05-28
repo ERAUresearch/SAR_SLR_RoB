@@ -388,10 +388,31 @@ const aiSearchToggle = document.getElementById('aiSearchMode');
 const pdfSearchStatus = document.getElementById('pdfSearchStatus');
 
 function setSearchStatus(msg, isError) {
-  if (!msg) { pdfSearchStatus.hidden = true; return; }
+  if (!msg) { pdfSearchStatus.hidden = true; pdfSearchStatus.innerHTML = ''; return; }
   pdfSearchStatus.textContent = msg;
   pdfSearchStatus.hidden = false;
   pdfSearchStatus.classList.toggle('is-error', !!isError);
+}
+
+/* Render the top-K matches as a strip of clickable pills. */
+function renderMatchPills(matches) {
+  pdfSearchStatus.innerHTML = '';
+  pdfSearchStatus.classList.remove('is-error');
+  pdfSearchStatus.hidden = false;
+  const label = document.createElement('span');
+  label.className = 'status-label';
+  label.textContent = `Top ${matches.length} matches:`;
+  pdfSearchStatus.appendChild(label);
+  matches.forEach((m, i) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'match-pill';
+    pill.style.background = AI_COLORS[Math.min(i, AI_COLORS.length - 1)].border;
+    pill.textContent = `#${i + 1} · p.${m.page} · ${(m.sim * 100).toFixed(0)}%`;
+    pill.title = m.text.slice(0, 200) + (m.text.length > 200 ? '…' : '');
+    pill.addEventListener('click', () => jumpToMatch(m));
+    pdfSearchStatus.appendChild(pill);
+  });
 }
 
 async function literalSearch(query) {
@@ -540,6 +561,19 @@ function cosine(a, b) {
   return s;
 }
 
+/* Color palette for ranked AI matches — best is the most saturated orange. */
+const AI_COLORS = [
+  { border: '#d97706', bg: 'rgba(251, 191, 36, 0.22)' },   // #1 orange
+  { border: '#ea580c', bg: 'rgba(251, 146, 60, 0.18)' },   // #2 darker orange
+  { border: '#0891b2', bg: 'rgba(8, 145, 178, 0.14)' },    // #3 teal
+  { border: '#7c3aed', bg: 'rgba(124, 58, 237, 0.13)' },   // #4 purple
+  { border: '#475569', bg: 'rgba(71, 85, 105, 0.11)' },    // #5 slate
+];
+const AI_TOP_K = 5;
+
+let aiActiveMatches = [];           // currently-highlighted matches (with .page, .bbox, .sim, .text)
+let aiTextLayerListener = null;     // re-attached on each new search so we can detach it
+
 async function aiSearch(query) {
   try {
     const app = await waitForPdfReady();
@@ -548,33 +582,70 @@ async function aiSearch(query) {
     setSearchStatus('Searching…');
     const qOut = await extractor(query, { pooling: 'mean', normalize: true });
     const qEmb = qOut.data;
-    let best = null, bestSim = -Infinity;
-    for (const p of paragraphs) {
-      const s = cosine(p.embedding, qEmb);
-      if (s > bestSim) { bestSim = s; best = p; }
+
+    const scored = paragraphs
+      .map(p => ({ ...p, sim: cosine(p.embedding, qEmb) }))
+      .sort((a, b) => b.sim - a.sim);
+    const topRaw = scored.slice(0, AI_TOP_K);
+    if (!topRaw.length || topRaw[0].sim < 0.05) {
+      clearAiOverlays();
+      setSearchStatus('No semantic matches in this PDF.', true);
+      return;
     }
-    if (!best) { setSearchStatus('No matches', true); return; }
-    setSearchStatus(`Best match on page ${best.page} (${(bestSim * 100).toFixed(0)}% similarity)`);
+    // Drop tail matches that are much weaker than the best (relative cutoff).
+    const cutoff = Math.max(0.10, topRaw[0].sim * 0.55);
+    const top = topRaw.filter(m => m.sim >= cutoff);
+    top.forEach((m, i) => (m.rank = i + 1));
+
     clearAiOverlays();
-    // Navigate to the page first, then draw the overlay after the text layer renders.
-    app.pdfViewer.scrollPageIntoView({ pageNumber: best.page });
-    const onRendered = (e) => {
-      if (e.pageNumber !== best.page) return;
-      app.eventBus.off('textlayerrendered', onRendered);
-      drawAiOverlay(app, best);
+    aiActiveMatches = top;
+    renderMatchPills(top);
+
+    // Persistent listener: redraw overlays whenever PDF.js renders a page
+    // (handles lazy load when user scrolls to a page, plus zoom re-renders).
+    aiTextLayerListener = (e) => {
+      const pageHits = aiActiveMatches.filter(m => m.page === e.pageNumber);
+      pageHits.forEach(h => drawAiOverlay(app, h));
     };
-    app.eventBus.on('textlayerrendered', onRendered);
-    // Fallback in case the layer rendered before we attached the handler.
-    setTimeout(() => drawAiOverlay(app, best), 500);
+    app.eventBus.on('textlayerrendered', aiTextLayerListener);
+
+    // Draw overlays for pages already rendered.
+    for (const m of top) {
+      const pv = app.pdfViewer.getPageView(m.page - 1);
+      if (pv && pv.textLayer && pv.textLayer.div && pv.textLayer.div.children.length > 0) {
+        drawAiOverlay(app, m);
+      }
+    }
+
+    // Jump to the best match — destArray scrolls so the paragraph top sits near the viewport top.
+    const best = top[0];
+    const padY = 30;
+    app.pdfViewer.scrollPageIntoView({
+      pageNumber: best.page,
+      destArray: [null, { name: 'XYZ' }, best.bbox.x - 8, best.bbox.y + best.bbox.h + padY, null],
+    });
   } catch (e) {
     console.error(e);
     setSearchStatus('AI search failed: ' + (e.message || e), true);
   }
 }
 
+function jumpToMatch(m) {
+  const app = getPdfApp();
+  if (!app) return;
+  const padY = 30;
+  app.pdfViewer.scrollPageIntoView({
+    pageNumber: m.page,
+    destArray: [null, { name: 'XYZ' }, m.bbox.x - 8, m.bbox.y + m.bbox.h + padY, null],
+  });
+}
+
 function drawAiOverlay(app, hit) {
   const pageView = app.pdfViewer.getPageView(hit.page - 1);
   if (!pageView || !pageView.viewport) return;
+  // Don't double-draw on re-renders.
+  if (pageView.div.querySelector(`[data-ai-overlay="1"][data-rank="${hit.rank}"]`)) return;
+
   const vp = pageView.viewport;
   const [x1, y1] = vp.convertToViewportPoint(hit.bbox.x, hit.bbox.y);
   const [x2, y2] = vp.convertToViewportPoint(hit.bbox.x + hit.bbox.w, hit.bbox.y + hit.bbox.h);
@@ -582,26 +653,52 @@ function drawAiOverlay(app, hit) {
   const top  = Math.min(y1, y2) - 4;
   const w    = Math.abs(x2 - x1) + 8;
   const h    = Math.abs(y2 - y1) + 8;
+
+  const c = AI_COLORS[Math.min(hit.rank - 1, AI_COLORS.length - 1)];
+
   const div = pageView.div.ownerDocument.createElement('div');
-  div.className = 'ai-overlay';
   div.dataset.aiOverlay = '1';
+  div.dataset.rank = String(hit.rank);
   Object.assign(div.style, {
     position: 'absolute',
     left: left + 'px', top: top + 'px',
     width: w + 'px', height: h + 'px',
-    border: '2.5px solid #d97706',
-    background: 'rgba(251, 191, 36, 0.18)',
+    border: '2.5px solid ' + c.border,
+    background: c.bg,
     borderRadius: '6px',
     pointerEvents: 'none',
     zIndex: '100',
-    boxShadow: '0 0 0 1px rgba(217, 119, 6, 0.3)',
+    boxShadow: '0 0 0 1px ' + c.border + '55',
   });
+
+  // Numbered badge on the top-left corner, sitting above the box.
+  const badge = pageView.div.ownerDocument.createElement('div');
+  badge.textContent = `#${hit.rank} · ${(hit.sim * 100).toFixed(0)}%`;
+  Object.assign(badge.style, {
+    position: 'absolute',
+    top: '-12px', left: '-6px',
+    background: c.border,
+    color: 'white',
+    fontSize: '11px',
+    fontWeight: '700',
+    padding: '2px 8px',
+    borderRadius: '999px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+    letterSpacing: '0.3px',
+  });
+  div.appendChild(badge);
   pageView.div.appendChild(div);
 }
 
 function clearAiOverlays() {
   const app = getPdfApp();
-  if (!app || !app.pdfViewer) return;
+  if (app && aiTextLayerListener) {
+    try { app.eventBus.off('textlayerrendered', aiTextLayerListener); } catch (_) {}
+    aiTextLayerListener = null;
+  }
+  aiActiveMatches = [];
   const doc = document.getElementById('studyPdfFrame').contentDocument;
   if (!doc) return;
   doc.querySelectorAll('[data-ai-overlay="1"]').forEach(el => el.remove());
