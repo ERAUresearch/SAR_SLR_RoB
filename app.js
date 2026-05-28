@@ -5,7 +5,9 @@
    - Excel export uses SheetJS (xlsx.full.min.js).
    ============================================================ */
 
-const STATE_KEY = 'sar_slr_rob:state:v1';
+const STATE_KEY = 'sar_slr_rob:state:v2';
+const LOCK_KEY = 'sar_slr_rob:unlocked';
+const ACCESS_CODE = '123456';
 
 const QUESTIONS = [
   { id: 'Q1', short: 'Objective',          text: 'Is the study objective or research question clearly stated?' },
@@ -47,7 +49,7 @@ function loadState() {
   }
 }
 function defaultState() {
-  return { name: '', role: '', onboarded: false, studies: {} };
+  return { name: '', onboarded: false, studies: {} };
 }
 function saveState() {
   localStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -99,9 +101,18 @@ function studyAnsweredCount(studyData) {
 
 /* ===== Router ===== */
 function route() {
+  hideAllScreens();
+
+  // Gate: shared access code first
+  if (localStorage.getItem(LOCK_KEY) !== '1') {
+    showScreen('screen-lock');
+    document.getElementById('appbar').hidden = true;
+    setTimeout(() => document.getElementById('lockInput')?.focus(), 0);
+    return;
+  }
+
   const h = location.hash.replace(/^#/, '') || (state.onboarded ? 'dashboard' : 'onboarding');
   const [name, param] = h.split('/');
-  hideAllScreens();
 
   if (name === 'onboarding' || !state.onboarded) {
     showScreen('screen-onboarding');
@@ -139,10 +150,24 @@ window.addEventListener('hashchange', route);
 /* ===== App bar ===== */
 function renderAppbar() {
   const chip = document.getElementById('reviewerChip');
-  chip.textContent = state.role && state.name
-    ? `${state.role} · ${state.name}`
-    : (state.role || 'Reviewer');
+  chip.textContent = state.name || 'Reviewer';
 }
+
+/* ===== Lock screen ===== */
+document.getElementById('lockForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('lockInput');
+  const err = document.getElementById('lockError');
+  if (input.value === ACCESS_CODE) {
+    localStorage.setItem(LOCK_KEY, '1');
+    err.hidden = true;
+    route();
+  } else {
+    err.hidden = false;
+    input.value = '';
+    input.focus();
+  }
+});
 document.getElementById('goHome').addEventListener('click', () => navigate('dashboard'));
 document.getElementById('helpBtn').addEventListener('click', () => navigate('help'));
 
@@ -153,12 +178,8 @@ function initOnboarding() {
   if (ol && ol.children.length === 0) {
     ol.innerHTML = QUESTIONS.map(q => `<li>${escapeHtml(q.text)}</li>`).join('');
   }
-  // Restore name/role if user came back to edit
+  // Restore name if user came back to edit
   document.getElementById('onbName').value = state.name || '';
-  if (state.role) {
-    const r = document.querySelector(`input[name="onbRole"][value="${state.role}"]`);
-    if (r) r.checked = true;
-  }
   updateOnbStep2NextEnabled();
 
   // Show step 1 by default
@@ -182,20 +203,14 @@ document.querySelectorAll('[data-onb-prev]').forEach(btn => {
   });
 });
 document.getElementById('onbName').addEventListener('input', updateOnbStep2NextEnabled);
-document.querySelectorAll('input[name="onbRole"]').forEach(el => {
-  el.addEventListener('change', updateOnbStep2NextEnabled);
-});
 function updateOnbStep2NextEnabled() {
   const name = document.getElementById('onbName').value.trim();
-  const role = document.querySelector('input[name="onbRole"]:checked');
-  document.getElementById('onbStep2Next').disabled = !(name && role);
+  document.getElementById('onbStep2Next').disabled = !name;
 }
 document.getElementById('onbFinish').addEventListener('click', () => {
   const name = document.getElementById('onbName').value.trim();
-  const role = document.querySelector('input[name="onbRole"]:checked');
-  if (!name || !role) { showOnbStep(2); return; }
+  if (!name) { showOnbStep(2); return; }
   state.name = name;
-  state.role = role.value;
   state.onboarded = true;
   saveState();
   navigate('dashboard');
@@ -207,7 +222,7 @@ function renderDashboard() {
   const greet = document.getElementById('dashGreeting');
   greet.textContent = state.name ? `Hello, ${state.name}` : 'Your dashboard';
   const dashSub = document.getElementById('dashSub');
-  dashSub.innerHTML = `You're rating as <strong>${state.role}</strong>. Your responses save automatically on this device.`;
+  dashSub.innerHTML = `Your responses save automatically on this device. Click <strong>Download my Excel</strong> when you're done.`;
 
   // Stats
   const total = STUDIES.length;
@@ -318,7 +333,17 @@ function renderStudy(id) {
   document.getElementById('studyId').textContent = s.id;
   document.getElementById('studyYear').textContent = s.year;
   document.getElementById('studyCitation').textContent = s.citation;
-  document.getElementById('studyPdf').href = 'pdfs/' + encodeURIComponent(s.pdf);
+  const pdfHref = 'pdfs/' + encodeURIComponent(s.pdf);
+  document.getElementById('studyPdf').href = pdfHref;
+  // Hide the iframe on narrow viewports so we don't fetch the PDF unnecessarily.
+  const pdfFrame = document.getElementById('studyPdfFrame');
+  if (window.matchMedia('(min-width: 1100px)').matches) {
+    if (pdfFrame.src !== window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + pdfHref) {
+      pdfFrame.src = pdfHref + '#view=FitH';
+    }
+  } else {
+    pdfFrame.removeAttribute('src');
+  }
 
   // Build questions
   const form = document.getElementById('questionsForm');
@@ -470,7 +495,7 @@ function exportExcel() {
     'Study ID', 'Track', 'Year', 'Citation',
     ...QUESTIONS.map(q => `${q.id} ${q.short}`),
     'Applicable items', 'Score (%)', 'No count',
-    `Overall judgement (${state.role})`, 'Auto vs override', 'Reviewer note',
+    'Overall judgement', 'Auto vs override', 'Reviewer note',
   ];
   const summaryRows = [header];
   for (const s of STUDIES) {
@@ -522,6 +547,7 @@ function exportExcel() {
   // --- Per-study (doc-format) sheet: matches Section 12 of the procedure docx ---
   // One sheet per study, but 54 tabs would be unwieldy.
   // Instead make one "Per-study (long form)" sheet with stacked tables.
+  const reviewerCol = state.name || 'Reviewer';
   const longRows = [];
   for (const s of STUDIES) {
     const d = state.studies[s.id];
@@ -530,7 +556,7 @@ function exportExcel() {
     const final = (d && d.judgementOverride) ? d.judgementOverride : auto;
     longRows.push([`${s.id}  |  Track ${s.track}`, '', '', '']);
     longRows.push([s.citation, '', '', '']);
-    longRows.push(['Appraisal item', state.role, '(other reviewers)', 'Consensus (TBD)']);
+    longRows.push(['Appraisal item', reviewerCol, '(other reviewers)', 'Consensus (TBD)']);
     for (const q of QUESTIONS) {
       longRows.push([`${q.id} ${q.short}`, d?.[q.id] || '', '', '']);
     }
@@ -545,11 +571,10 @@ function exportExcel() {
 
   // --- Meta sheet ---
   const meta = [
-    ['SAR-SLR Risk-of-Bias appraisal — exported by reviewer ' + (state.role || '?')],
+    ['SAR-SLR Risk-of-Bias appraisal — exported by ' + (state.name || 'reviewer')],
     ['Reviewer name', state.name || ''],
-    ['Reviewer role', state.role || ''],
     ['Export timestamp', new Date().toISOString()],
-    ['App version', 'v1'],
+    ['App version', 'v2'],
     [],
     ['Studies total', STUDIES.length],
     ['Studies complete', STUDIES.filter(s => studyAnsweredCount(state.studies[s.id]) === QUESTIONS.length).length],
@@ -569,7 +594,7 @@ function exportExcel() {
   // Filename
   const stamp = new Date().toISOString().slice(0, 10);
   const safeName = (state.name || 'reviewer').replace(/[^a-z0-9_-]+/gi, '_');
-  const filename = `SAR_SLR_RoB_${state.role || 'R?'}_${safeName}_${stamp}.xlsx`;
+  const filename = `SAR_SLR_RoB_${safeName}_${stamp}.xlsx`;
   XLSX.writeFile(wb, filename);
   toast(`Excel exported: ${filename}`);
 }

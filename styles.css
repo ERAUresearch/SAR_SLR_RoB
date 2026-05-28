@@ -40,6 +40,7 @@ fieldset { border: 0; padding: 0; margin: 0; }
 
 .container { max-width: 1080px; margin: 0 auto; padding: 24px; }
 .container.narrow { max-width: 720px; }
+.container.study-container { max-width: 1480px; }
 
 /* ===== App bar ===== */
 .appbar {
@@ -81,6 +82,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .ghost-btn {
   background: transparent; color: var(--ink-2); border: 1px solid var(--line);
   padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  text-decoration: none;
+  display: inline-flex; align-items: center;
 }
 .ghost-btn:hover { background: #f0f4f6; color: var(--ink); }
 .back-link {
@@ -144,6 +147,7 @@ fieldset { border: 0; padding: 0; margin: 0; }
   display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px;
 }
 .field input[type="text"],
+.field input[type="password"],
 .field textarea,
 .field select {
   width: 100%;
@@ -156,32 +160,12 @@ fieldset { border: 0; padding: 0; margin: 0; }
   color: var(--ink);
 }
 .field input[type="text"]:focus,
+.field input[type="password"]:focus,
 .field textarea:focus,
 .field select:focus {
   outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(31, 122, 140, 0.15);
 }
 .hint { color: var(--ink-3); font-size: 13px; margin: 4px 0 0; }
-
-.role-picker {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px;
-}
-.role-card {
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  background: white;
-}
-.role-card input { position: absolute; opacity: 0; pointer-events: none; }
-.role-card:hover { border-color: var(--teal); }
-.role-card:has(input:checked) {
-  border-color: var(--teal);
-  background: var(--teal-soft);
-}
-.role-title { display: block; font-size: 18px; font-weight: 700; color: var(--ink); }
-.role-sub { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
 
 .score-legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
 .legend-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
@@ -391,6 +375,46 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .study-override textarea {
   width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
   font-size: 14px; font-family: inherit; background: white; color: var(--ink);
+}
+
+/* ===== Lock screen ===== */
+.lock-card { max-width: 460px; }
+.lock-card .field input {
+  letter-spacing: 4px;
+  font-size: 18px;
+  text-align: center;
+}
+.lock-error {
+  color: var(--red); font-size: 13px; margin: 8px 0 0; font-weight: 500;
+}
+
+/* ===== Study split layout (side-by-side form + PDF) ===== */
+.study-split { display: block; }
+.study-pdf-col { display: none; }
+
+@media (min-width: 1100px) {
+  .study-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .study-form-col { min-width: 0; }
+  .study-pdf-col {
+    display: block;
+    position: sticky;
+    top: 76px;
+    height: calc(100vh - 96px);
+    min-height: 600px;
+  }
+  .study-pdf-frame {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: white;
+    box-shadow: var(--shadow);
+  }
 }
 
 /* ===== Footer ===== */

@@ -26,6 +26,27 @@
 
   <main id="main">
 
+    <!-- ===== Lock screen (shared access code) ===== -->
+    <section class="screen" id="screen-lock" hidden>
+      <div class="onboarding-wrap">
+        <div class="onboarding-card lock-card">
+          <div class="onb-emoji" aria-hidden="true">RoB</div>
+          <h1>SAR SLR · Risk of Bias</h1>
+          <p class="lead">Co-authors only. Enter the shared access code to continue.</p>
+          <form id="lockForm" autocomplete="off">
+            <label class="field">
+              <span class="field-label">Access code</span>
+              <input type="password" id="lockInput" inputmode="numeric" autocomplete="current-password" autofocus />
+            </label>
+            <p class="lock-error" id="lockError" hidden>That code didn't match. Try again.</p>
+            <div class="onb-actions">
+              <button type="submit" class="primary-btn">Unlock →</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== Onboarding ===== -->
     <section class="screen" id="screen-onboarding" hidden>
       <div class="onboarding-wrap">
@@ -54,23 +75,13 @@
           <!-- Step 2: Identify yourself -->
           <div class="onb-step" id="onb-step-2" hidden>
             <div class="onb-progress" data-step="2"></div>
-            <h2>Who are you?</h2>
-            <p class="lead">This just labels your exported Excel — it stays on this device.</p>
+            <h2>What's your name?</h2>
+            <p class="lead">This labels your exported Excel so the team knows whose ratings are whose. It stays on this device.</p>
 
             <label class="field">
-              <span class="field-label">Your name</span>
-              <input type="text" id="onbName" placeholder="e.g., Dr. Kush Patel" autocomplete="name" />
+              <span class="field-label">Your full name</span>
+              <input type="text" id="onbName" autocomplete="name" />
             </label>
-
-            <fieldset class="field">
-              <legend class="field-label">Which reviewer slot are you?</legend>
-              <p class="hint">Coordinate with your co-authors so each person takes a different slot.</p>
-              <div class="role-picker">
-                <label class="role-card"><input type="radio" name="onbRole" value="R1" /><span class="role-title">R1</span><span class="role-sub">Reviewer 1</span></label>
-                <label class="role-card"><input type="radio" name="onbRole" value="R2" /><span class="role-title">R2</span><span class="role-sub">Reviewer 2</span></label>
-                <label class="role-card"><input type="radio" name="onbRole" value="R3" /><span class="role-title">R3</span><span class="role-sub">Reviewer 3</span></label>
-              </div>
-            </fieldset>
 
             <div class="onb-actions">
               <button class="ghost-btn" data-onb-prev="1">← Back</button>
@@ -155,7 +166,7 @@
 
     <!-- ===== Per-study form ===== -->
     <section class="screen" id="screen-study" hidden>
-      <div class="container">
+      <div class="container study-container">
 
         <button class="back-link" id="backToDash">← All studies</button>
 
@@ -167,7 +178,7 @@
           </div>
           <h1 class="study-citation" id="studyCitation"></h1>
           <div class="study-actions">
-            <a class="primary-btn" id="studyPdf" target="_blank" rel="noopener">Open PDF in new tab ↗</a>
+            <a class="ghost-btn" id="studyPdf" target="_blank" rel="noopener">Open PDF in new tab ↗</a>
             <span class="save-indicator" id="saveIndicator" aria-live="polite"></span>
           </div>
         </div>
@@ -187,29 +198,37 @@
           </div>
         </div>
 
-        <div id="questionsForm"></div>
+        <div class="study-split">
+          <div class="study-form-col">
+            <div id="questionsForm"></div>
 
-        <div class="study-foot">
-          <button class="ghost-btn" id="prevStudyBtn">← Previous study</button>
-          <button class="primary-btn" id="nextStudyBtn">Save & next study →</button>
-        </div>
+            <div class="study-foot">
+              <button class="ghost-btn" id="prevStudyBtn">← Previous study</button>
+              <button class="primary-btn" id="nextStudyBtn">Save & next study →</button>
+            </div>
 
-        <div class="study-override">
-          <details>
-            <summary>Override the provisional judgement</summary>
-            <p class="hint">Use this only if the auto-computed judgement does not reflect your reading — e.g., you choose <em>Unclear</em> because too much information is missing to judge fairly.</p>
-            <select id="judgementOverride">
-              <option value="">Use auto-computed judgement</option>
-              <option value="Low concern">Low concern</option>
-              <option value="Some concern">Some concern</option>
-              <option value="High concern">High concern</option>
-              <option value="Unclear">Unclear</option>
-            </select>
-            <label class="field" style="margin-top: 12px;">
-              <span class="field-label">Reviewer's overall note (optional)</span>
-              <textarea id="studyNote" rows="3" placeholder="Brief overall comment on this study — visible in your exported Excel."></textarea>
-            </label>
-          </details>
+            <div class="study-override">
+              <details>
+                <summary>Override the provisional judgement</summary>
+                <p class="hint">Use this only if the auto-computed judgement does not reflect your reading — e.g., you choose <em>Unclear</em> because too much information is missing to judge fairly.</p>
+                <select id="judgementOverride">
+                  <option value="">Use auto-computed judgement</option>
+                  <option value="Low concern">Low concern</option>
+                  <option value="Some concern">Some concern</option>
+                  <option value="High concern">High concern</option>
+                  <option value="Unclear">Unclear</option>
+                </select>
+                <label class="field" style="margin-top: 12px;">
+                  <span class="field-label">Reviewer's overall note (optional)</span>
+                  <textarea id="studyNote" rows="3" placeholder="Brief overall comment on this study — visible in your exported Excel."></textarea>
+                </label>
+              </details>
+            </div>
+          </div>
+
+          <aside class="study-pdf-col" aria-label="Study PDF">
+            <iframe class="study-pdf-frame" id="studyPdfFrame" title="Study PDF"></iframe>
+          </aside>
         </div>
 
       </div>
@@ -242,7 +261,7 @@
           ratings are deleted — so export your Excel before clearing storage. Export early and often.
         </p>
 
-        <h2>Switch reviewer slot or change name</h2>
+        <h2>Change your name</h2>
         <p>
           <button class="ghost-btn" id="changeRoleBtn">Re-open the onboarding</button>
         </p>

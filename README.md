@@ -10,10 +10,11 @@ systematic literature review:
 
 ## What this is
 
-Each of the three reviewers (R1, R2, R3) opens the site, picks their reviewer
-slot, rates all 54 included studies against the eight-question modified
-MMAT-informed engineering quality checklist, and downloads an Excel file at the
-end. The three Excel files are then merged offline for the consensus meeting.
+Each reviewer enters the shared access code, gives their name, rates all 54
+included studies against the eight-question modified MMAT-informed engineering
+quality checklist with the PDF visible side-by-side, and downloads an Excel
+file at the end. The three Excel files are then merged offline for the
+consensus meeting.
 
 ## How it works
 
