@@ -13,42 +13,42 @@ const QUESTIONS = [
   {
     id: 'Q1', short: 'Objective',
     text: 'Is the study objective or research question clearly stated?',
-    simple: "Did the authors clearly say what they're trying to find out or solve? Look for an explicit research question, aim, or objective in the abstract or introduction. If you have to guess what the paper is really about, the answer is No or Partly."
+    simple: "Is it clear what problem the authors are trying to solve or what question they're trying to answer? The aim may be stated explicitly in the abstract or introduction, or it may emerge from how the work is framed — read with that in mind and judge whether the intent comes through."
   },
   {
     id: 'Q2', short: 'Method detail',
     text: 'Is the UAV, SAR, deconfliction, ADS-B, or mixed-airspace method described with enough detail to support interpretation or replication?',
-    simple: "Could another researcher rebuild what this paper did from the description alone? Look for enough specifics about the algorithm, hardware, simulator, and inputs. Vague, high-level summaries with no concrete details = No or Partly."
+    simple: "Is the method described in enough detail that another team could interpret what was done and, if needed, attempt to replicate it? Consider the algorithm, hardware/simulator setup, parameters, and inputs — some of this is explicit and some you'll need to piece together from the paper as a whole."
   },
   {
     id: 'Q3', short: 'Method fit',
     text: 'Is the selected method appropriate for the stated SAR optimization or deconfliction problem?',
-    simple: "Does the chosen approach actually match the problem? A static planner for a dynamic environment, or a centralized algorithm for a swarm with no comms, would be a mismatch. The method's strengths should line up with what the paper claims to solve."
+    simple: "Does the chosen approach genuinely fit the SAR or deconfliction problem the authors set out to address? Consider whether the method's strengths and assumptions align with the conditions and goals of the problem — sometimes this fit is argued directly, sometimes you'll need to infer it from context."
   },
   {
     id: 'Q4', short: 'Comparators',
     text: 'Are comparators, baselines, benchmarks, or reference cases clearly described and appropriate?',
-    simple: "Is the new method compared against something reasonable — a prior algorithm, a sensible baseline, or a published benchmark? A paper that presents results in isolation with no comparison, or compares only against an obviously weak straw-man, scores low here."
+    simple: "Is the method evaluated against a meaningful point of comparison — a prior algorithm, a sensible baseline, or a published benchmark? Consider whether the comparators chosen give a fair sense of where this work stands relative to existing approaches."
   },
   {
     id: 'Q5', short: 'Metrics',
     text: 'Are performance metrics clearly defined and aligned with SAR mission effectiveness, deconfliction safety, or operational feasibility?',
-    simple: "Are the numbers they report (search time, coverage %, collision rate, separation distance) clearly defined and actually relevant to SAR or airspace safety? Generic metrics like 'computation time' without any mission-relevance link weakens this score."
+    simple: "Are the performance metrics defined clearly and tied to what matters operationally — SAR mission effectiveness, deconfliction safety, or feasibility in real airspace? Consider both how rigorously they're defined and how meaningfully they connect to mission outcomes."
   },
   {
     id: 'Q6', short: 'Scenario realism',
     text: 'Are the scenarios operationally realistic enough for SAR, helicopter interaction, low-altitude airspace, UTM, U-space, or mixed manned-unmanned operations?',
-    simple: "Are the test scenarios believable for a real SAR mission or real air-traffic conditions? A flat 2D grid with no obstacles is less realistic than complex terrain with weather, comms gaps, or actual manned aircraft in the airspace."
+    simple: "Are the test scenarios operationally realistic for SAR, low-altitude airspace, UTM/U-space, or mixed manned-unmanned operations? Consider how well the environment, traffic, and conditions reflect situations the system would actually encounter in use."
   },
   {
     id: 'Q7', short: 'Constraints',
     text: 'Does the study address uncertainty, latency, packet loss, degraded communications, platform failure, sensing limitations, or other operational constraints?',
-    simple: "Does the paper grapple with real-world headaches — network drops, GPS noise, sensor errors, drone failures, bad weather? Work that assumes perfect comms, perfect sensors, and perfect platforms gets a No here."
+    simple: "Does the study engage with operational constraints — uncertainty, latency, packet loss, degraded comms, platform failure, sensing limits, and similar real-world frictions? Consider whether these are explicitly modeled, sensitivity-tested, or at least acknowledged in the analysis."
   },
   {
     id: 'Q8', short: 'Validation/repro',
     text: 'Is validation maturity adequate, and is enough information provided to judge reproducibility?',
-    simple: "How thoroughly was the work actually tested — pure simulation, hardware-in-the-loop, or real flight tests? And are the data, code, seeds, or parameters available enough that someone could verify the results? Simulation-only with no released artifacts drops this score."
+    simple: "How mature is the validation — pure simulation, hardware-in-the-loop, controlled experiments, or actual flight tests? And is enough information available — data, code, seeds, parameter values — for another researcher to judge whether the results could be reproduced?"
   },
 ];
 
