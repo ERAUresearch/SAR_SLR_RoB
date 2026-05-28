@@ -144,7 +144,13 @@ function showScreen(id) {
   document.getElementById(id).hidden = false;
 }
 function navigate(hash) {
-  location.hash = hash;
+  const target = '#' + hash;
+  if (location.hash === target) {
+    // Same hash — hashchange won't fire, so re-render explicitly.
+    route();
+  } else {
+    location.hash = hash;
+  }
 }
 window.addEventListener('hashchange', route);
 
@@ -454,6 +460,50 @@ function jumpToLiteralMatch(m) {
   const app = getPdfApp();
   if (!app) return;
   app.pdfViewer.scrollPageIntoView({ pageNumber: m.page });
+  // PDF.js renders matches as .highlight spans inside .textLayer; the Nth one
+  // on this page corresponds to our Nth match (same top-to-bottom reading order).
+  const selector = '.page[data-page-number="' + m.page + '"] .textLayer .highlight';
+  centerOverlayWhenReady(selector, m.page, m.matchIdx || 0);
+}
+
+/* Poll for the target element (PDF.js renders pages + highlights lazily after
+ * a scrollPageIntoView), then scroll it to the middle of the PDF.js viewer
+ * container. We do the centering ourselves because scrollIntoView misbehaves
+ * on the CSS-transformed text-layer spans PDF.js uses. */
+function centerOverlayWhenReady(selector, pageNum, nthIndex) {
+  const iframe = document.getElementById('studyPdfFrame');
+  if (!iframe) return;
+  let tries = 0;
+  const maxTries = 60;  // 6s @ 100ms
+  const interval = setInterval(() => {
+    tries++;
+    const app = getPdfApp();
+    const doc = iframe.contentDocument;
+    if (!doc || !app || !app.pdfViewer) {
+      if (tries >= maxTries) clearInterval(interval);
+      return;
+    }
+    const targets = doc.querySelectorAll(selector);
+    const target = (typeof nthIndex === 'number' && nthIndex >= 0)
+      ? targets[nthIndex]
+      : targets[0];
+    if (target && target.getClientRects().length > 0) {
+      clearInterval(interval);
+      const container = app.pdfViewer.container;
+      const targetRect = target.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const offsetWithinContainer = (targetRect.top - containerRect.top) + container.scrollTop;
+      const centeredTop = offsetWithinContainer - (container.clientHeight / 2) + (targetRect.height / 2);
+      const newTop = Math.max(0, Math.min(centeredTop, container.scrollHeight - container.clientHeight));
+      try {
+        container.scrollTo({ top: newTop, behavior: 'smooth' });
+      } catch (_) {
+        container.scrollTop = newTop;
+      }
+    } else if (tries >= maxTries) {
+      clearInterval(interval);
+    }
+  }, 100);
 }
 
 function hideResultsPanel() {
@@ -500,6 +550,7 @@ async function collectAndShowLiteralMatches(app, query) {
     const fullText = tc.items.map(i => i.str).join(' ');
     const lower = fullText.toLowerCase();
     let from = 0;
+    let inPageIdx = 0;
     while (matches.length < MAX) {
       const pos = lower.indexOf(q, from);
       if (pos < 0) break;
@@ -516,7 +567,9 @@ async function collectAndShowLiteralMatches(app, query) {
         text: prefix + before + hit + after + suffix,
         hitOffset: prefix.length + before.length,
         hitLen: hit.length,
+        matchIdx: inPageIdx,
       });
+      inPageIdx++;
       from = pos + q.length;
     }
   }
@@ -737,11 +790,13 @@ async function aiSearch(query) {
 function jumpToMatch(m) {
   const app = getPdfApp();
   if (!app) return;
-  const padY = 30;
+  // Step 1: ask PDF.js to bring the page (and roughly the bbox) into view.
+  // Step 2: once the overlay is in the DOM, center it in the viewport.
   app.pdfViewer.scrollPageIntoView({
     pageNumber: m.page,
-    destArray: [null, { name: 'XYZ' }, m.bbox.x - 8, m.bbox.y + m.bbox.h + padY, null],
+    destArray: [null, { name: 'XYZ' }, m.bbox.x - 8, m.bbox.y + m.bbox.h + 30, null],
   });
+  centerOverlayWhenReady('[data-ai-overlay="1"][data-rank="' + m.rank + '"]', m.page);
 }
 
 function drawAiOverlay(app, hit) {
@@ -872,9 +927,13 @@ function renderStudy(id) {
     form.appendChild(card);
   }
 
-  // Wire response clicks
+  // Wire response clicks. preventDefault stops the <label>'s default behaviour
+  // of focusing the associated radio input — which, for inputs further down the
+  // form, makes the browser auto-scroll the form column to bring the radio into
+  // view (jerking the page below Q5 or so). We tick the radio ourselves.
   form.querySelectorAll('.resp-card').forEach(el => {
     el.addEventListener('click', e => {
+      e.preventDefault();
       const q = el.dataset.q;
       const key = el.dataset.key;
       const klass = el.dataset.klass;
