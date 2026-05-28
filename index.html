@@ -183,23 +183,23 @@
           </div>
         </div>
 
-        <div class="score-card">
-          <div>
-            <div class="score-label">Live score</div>
-            <div class="score-value"><span id="liveScore">—</span></div>
-          </div>
-          <div>
-            <div class="score-label">Applicable items</div>
-            <div class="score-value-sub"><span id="liveApplicable">0</span> / 8</div>
-          </div>
-          <div>
-            <div class="score-label">Provisional judgement</div>
-            <div class="score-value-sub"><span class="judgement-pill" id="liveJudgement">Not started</span></div>
-          </div>
-        </div>
-
         <div class="study-split">
           <div class="study-form-col">
+            <div class="score-card sticky-score">
+              <div>
+                <div class="score-label">Live score</div>
+                <div class="score-value"><span id="liveScore">—</span></div>
+              </div>
+              <div>
+                <div class="score-label">Applicable items</div>
+                <div class="score-value-sub"><span id="liveApplicable">0</span> / 8</div>
+              </div>
+              <div>
+                <div class="score-label">Provisional judgement</div>
+                <div class="score-value-sub"><span class="judgement-pill" id="liveJudgement">Not started</span></div>
+              </div>
+            </div>
+
             <div id="questionsForm"></div>
 
             <div class="study-foot">
@@ -227,6 +227,11 @@
           </div>
 
           <aside class="study-pdf-col" aria-label="Study PDF">
+            <form class="pdf-search-bar" id="pdfSearchForm" role="search">
+              <input type="search" id="pdfSearchInput" placeholder="Search in PDF…" aria-label="Search in PDF" />
+              <button type="submit" class="primary-btn pdf-search-btn">Search</button>
+              <button type="button" class="ghost-btn pdf-search-clear" id="pdfSearchClear" title="Clear search and reload PDF" aria-label="Clear search">Clear</button>
+            </form>
             <iframe class="study-pdf-frame" id="studyPdfFrame" title="Study PDF"></iframe>
           </aside>
         </div>

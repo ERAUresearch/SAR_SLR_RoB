@@ -319,7 +319,35 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 /* ===== Per-study form ===== */
 let currentStudyId = null;
+let currentPdfHref = '';
 let saveTimer = null;
+
+function loadStudyPdf(query) {
+  const pdfFrame = document.getElementById('studyPdfFrame');
+  if (!currentPdfHref) { pdfFrame.removeAttribute('src'); return; }
+  if (!window.matchMedia('(min-width: 1100px)').matches) {
+    pdfFrame.removeAttribute('src');
+    return;
+  }
+  // Use PDF.js viewer so the inline search works in every browser.
+  // PDF.js supports #search=<query>&phrase=true&highlightAll=true as URL hash params.
+  const absPdfUrl = new URL(currentPdfHref, window.location.href).href;
+  const viewerSrc = 'lib/pdfjs/web/viewer.html?file=' + encodeURIComponent(absPdfUrl);
+  const hash = query
+    ? '#search=' + encodeURIComponent(query) + '&phrase=true&highlightAll=true'
+    : '';
+  pdfFrame.src = viewerSrc + hash;
+}
+
+document.getElementById('pdfSearchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = document.getElementById('pdfSearchInput').value.trim();
+  loadStudyPdf(q);
+});
+document.getElementById('pdfSearchClear').addEventListener('click', () => {
+  document.getElementById('pdfSearchInput').value = '';
+  loadStudyPdf('');
+});
 
 function renderStudy(id) {
   const s = STUDIES.find(x => x.id === id);
@@ -335,15 +363,9 @@ function renderStudy(id) {
   document.getElementById('studyCitation').textContent = s.citation;
   const pdfHref = 'pdfs/' + encodeURIComponent(s.pdf);
   document.getElementById('studyPdf').href = pdfHref;
-  // Hide the iframe on narrow viewports so we don't fetch the PDF unnecessarily.
-  const pdfFrame = document.getElementById('studyPdfFrame');
-  if (window.matchMedia('(min-width: 1100px)').matches) {
-    if (pdfFrame.src !== window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + pdfHref) {
-      pdfFrame.src = pdfHref + '#view=FitH';
-    }
-  } else {
-    pdfFrame.removeAttribute('src');
-  }
+  currentPdfHref = pdfHref;
+  document.getElementById('pdfSearchInput').value = '';
+  loadStudyPdf('');
 
   // Build questions
   const form = document.getElementById('questionsForm');

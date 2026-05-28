@@ -40,7 +40,11 @@ fieldset { border: 0; padding: 0; margin: 0; }
 
 .container { max-width: 1080px; margin: 0 auto; padding: 24px; }
 .container.narrow { max-width: 720px; }
-.container.study-container { max-width: 1480px; }
+.container.study-container {
+  max-width: none;
+  padding-left: max(16px, 2in);
+  padding-right: max(16px, 2in);
+}
 
 /* ===== App bar ===== */
 .appbar {
@@ -392,30 +396,59 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .study-split { display: block; }
 .study-pdf-col { display: none; }
 
+/* Score card sticks beneath the app bar so the live judgement is always visible. */
+.score-card.sticky-score {
+  position: sticky;
+  top: 60px;
+  z-index: 5;
+}
+
 @media (min-width: 1100px) {
   .study-split {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-columns: clamp(460px, 36%, 620px) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
   .study-form-col { min-width: 0; }
   .study-pdf-col {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     position: sticky;
     top: 76px;
     height: calc(100vh - 96px);
     min-height: 600px;
   }
   .study-pdf-frame {
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    height: 100%;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: white;
     box-shadow: var(--shadow);
   }
 }
+
+.pdf-search-bar {
+  display: flex; gap: 6px;
+}
+.pdf-search-bar input[type="search"] {
+  flex: 1; min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  color: var(--ink);
+}
+.pdf-search-bar input[type="search"]:focus {
+  outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(31, 122, 140, 0.15);
+}
+.pdf-search-btn { padding: 8px 14px; font-size: 13px; }
+.pdf-search-clear { padding: 8px 12px; font-size: 13px; }
 
 /* ===== Footer ===== */
 .footer {
